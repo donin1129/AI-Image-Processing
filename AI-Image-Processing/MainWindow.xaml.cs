@@ -8,6 +8,7 @@ using Microsoft.ML;
 using System.Diagnostics;
 using System.Threading;
 using System.Drawing;
+using System.Reflection;
 using AI_Image_Processing;
 
 namespace AI_Image_Processing
@@ -19,8 +20,8 @@ namespace AI_Image_Processing
     {
         private PredictionEngine<ImageInputData, CancerDetectionPrediction> cancerDetectionPredictionEngine;
 
-        private static readonly string rootDirectory = Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName;
-        private static readonly string modelsDirectory = Path.Combine(rootDirectory, @"ML\OnnxModels");
+        //private static readonly string rootDirectory = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+        //private static readonly string modelsDirectory = Path.Combine(rootDirectory, @"ML\OnnxModels");
 
         private string status = "";
 
@@ -30,7 +31,11 @@ namespace AI_Image_Processing
         {
             InitializeComponent();
             // Load the model when initialized
-            LoadModel();
+            // Encounters last-minute problem when creating executable file -> load model using file dialog
+            OpenFileDialog op = new OpenFileDialog();
+            op.Title = "Select ONNX Model";
+            if (op.ShowDialog() == true) { LoadModel(op.FileName);}
+            
             // Set textblock to show white text
             txtOutput.Foreground = System.Windows.Media.Brushes.White;
         }
@@ -124,12 +129,12 @@ namespace AI_Image_Processing
             Application.Current.Shutdown();
         }
 
-        private void LoadModel()
+        private void LoadModel(string path)
         {
             // Check for an Onnx model exported from Tensorflow to Onnx
             Debug.WriteLine("Loading Cancer Detection Model");
 
-            var cancerDetectionModel = new CancerDetectionModel(Path.Combine(modelsDirectory, "cancer_detection_model_updated.onnx"));
+            var cancerDetectionModel = new CancerDetectionModel(path);
             var modelConfigurator = new OnnxModelConfigurator(cancerDetectionModel);
 
             cancerDetectionPredictionEngine = modelConfigurator.GetMlNetPredictionEngine<CancerDetectionPrediction>();

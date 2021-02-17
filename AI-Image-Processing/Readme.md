@@ -45,3 +45,6 @@ Possible Future Improvements:
 - Support multi-resolution mega-pixel whole-slide files. 
 - More interactive UI and UX (such as for viewing whole-slide images). 
 - More testing and better error handling. 
+- Better visualization. 
+- Load machine learning model during initialization. 
+> I encountered a last-minute problem that the release build cannot correctly allocate onnx file. 

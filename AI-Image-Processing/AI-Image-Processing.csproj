@@ -5,6 +5,11 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RootNamespace>AI_Image_Processing</RootNamespace>
     <UseWPF>true</UseWPF>
+    <!--
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    -->
   </PropertyGroup>
 
   <ItemGroup>
