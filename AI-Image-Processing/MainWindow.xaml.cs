@@ -8,7 +8,7 @@ using Microsoft.ML;
 using System.Diagnostics;
 using System.Threading;
 using System.Drawing;
-using System.Reflection;
+using System.Windows.Interop;
 using AI_Image_Processing;
 
 namespace AI_Image_Processing
@@ -164,7 +164,7 @@ namespace AI_Image_Processing
                 {
                     // Crop whole slide image
                     Int32Rect rect = new Int32Rect((int)(x - ImageSettings.imageWidth / 2), (int)(y - ImageSettings.imageHeight / 2), ImageSettings.imageWidth, ImageSettings.imageHeight);
-                    CroppedBitmap cb = new CroppedBitmap(Bitmap2BitmapSource(imageDetection), rect);
+                    CroppedBitmap cb = new CroppedBitmap(GetBitmapSource(imageDetection), rect);
                     // Predict outcome and set up the float[] to generate the overlay mask
                     var frame = new ImageInputData { Image = BitmapImage2Bitmap(Bitmap2BitmapImage(cb)) };
                     var prediction = DetectUsingModel(frame);
@@ -173,13 +173,16 @@ namespace AI_Image_Processing
                 }
             }
 
-            // Convert float[] to a byte[] then to a BitmapSource
-            var byteArray = new byte[haveCancerPrediction.Length * 4];
-            Buffer.BlockCopy(haveCancerPrediction, 0, byteArray, 0, byteArray.Length);
-            BitmapSource overlayImg= FromArray(byteArray, ResolutionX, ResolutionY, 1);
-            
+            Bitmap overlayBitmap = new Bitmap(ResolutionX, ResolutionY);
+            for (int pixel = 0; pixel < haveCancerPrediction.Length; pixel++)
+            {
+                int r_value = 255 - (int) (haveCancerPrediction[pixel] * 255 * 100000); // The intensity multiplier is 100000
+                if (r_value < 0) { r_value = 0; }
+                overlayBitmap.SetPixel(pixel % ResolutionX, (int)Math.Floor((float)pixel / (float)ResolutionX), System.Drawing.Color.FromArgb(r_value, 0, 0));
+                overlayBitmap.SetPixel((int)Math.Floor((float)pixel / (float)ResolutionX), pixel % ResolutionX, System.Drawing.Color.FromArgb(r_value, 0, 0));
+            }
             // Scale the Bitmap mask to cover the whole slide image
-            var targetBitmapImage = new TransformedBitmap(overlayImg, new ScaleTransform((imageDetection.Width)/ ResolutionX, (imageDetection.Height) / ResolutionY));
+            var targetBitmapImage = new TransformedBitmap(GetBitmapSource(overlayBitmap), new ScaleTransform((imageDetection.Width)/ ResolutionX, (imageDetection.Height) / ResolutionY));
 
             // Set the bitmap to display
             imgMask.Source = targetBitmapImage;
@@ -220,21 +223,6 @@ namespace AI_Image_Processing
             return labels;
         }
 
-        // Helper Function to Convert byte[] to BitmapSource
-        public static BitmapSource FromArray(byte[] data, int w, int h, int ch)
-        {
-            PixelFormat format = PixelFormats.Default;
-
-            if (ch == 1) format = PixelFormats.Gray8; //grey scale image 0-255
-            if (ch == 3) format = PixelFormats.Bgr24; //RGB
-            if (ch == 4) format = PixelFormats.Bgr32; //RGB + alpha
-
-            WriteableBitmap wbm = new WriteableBitmap(w, h, 96, 96, format, null);
-            wbm.WritePixels(new Int32Rect(0, 0, w, h), data, ch * w, 0);
-
-            return wbm;
-        }
-
         // Helper Function to Convert CroppedBitmap (BitmapSource) to BitmapImage
         private BitmapImage Bitmap2BitmapImage(BitmapSource cb)
         {
@@ -265,22 +253,17 @@ namespace AI_Image_Processing
         }
 
         // Helper Function to Convert Bitmao to BitmapSource
-        public static BitmapSource Bitmap2BitmapSource(Bitmap bitmap)
+        public BitmapSource GetBitmapSource(Bitmap bitmap)
         {
-            var bitmapData = bitmap.LockBits(
-                new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height),
-                System.Drawing.Imaging.ImageLockMode.ReadOnly, bitmap.PixelFormat);
-
-            var bitmapSource = BitmapSource.Create(
-                bitmapData.Width, bitmapData.Height,
-                bitmap.HorizontalResolution, bitmap.VerticalResolution,
-                PixelFormats.Bgr24, null,
-                bitmapData.Scan0, bitmapData.Stride * bitmapData.Height, bitmapData.Stride);
-
-            bitmap.UnlockBits(bitmapData);
+            BitmapSource bitmapSource = Imaging.CreateBitmapSourceFromHBitmap
+            (
+                bitmap.GetHbitmap(),
+                IntPtr.Zero,
+                Int32Rect.Empty,
+                BitmapSizeOptions.FromEmptyOptions()
+            );
 
             return bitmapSource;
         }
-
     }
 }
